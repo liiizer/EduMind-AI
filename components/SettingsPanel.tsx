@@ -1,6 +1,6 @@
 import React from 'react';
 import { Subject, Grade, TaskMode, StudentProfile } from '../types';
-import { Settings, User, BookOpen, AlertTriangle, Server, Database } from 'lucide-react';
+import { Settings, User, BookOpen, AlertTriangle, Server, Database, UserCircle } from 'lucide-react';
 
 interface Props {
   student: StudentProfile;
@@ -52,8 +52,18 @@ export const SettingsPanel: React.FC<Props> = ({
           />
         </div>
 
-        {/* Student Grade */}
+        {/* Student Name & Grade */}
         <div>
+           <label className="block text-xs font-semibold text-gray-500 mb-1 flex items-center gap-1">
+            <UserCircle className="w-3 h-3" /> Student Name
+          </label>
+          <input 
+            type="text" 
+            value={student.name}
+            onChange={(e) => setStudent({...student, name: e.target.value})}
+            className="w-full text-sm p-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none mb-3"
+          />
+
           <label className="block text-xs font-semibold text-gray-500 mb-1 flex items-center gap-1">
             <User className="w-3 h-3" /> Grade Level
           </label>

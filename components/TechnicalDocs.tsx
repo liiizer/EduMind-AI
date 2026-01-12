@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Copy, FileText, Code, FolderTree, BookOpen } from 'lucide-react';
+import { Copy, FileText, Code, FolderTree, BookOpen, Workflow, Server, Database, User, Monitor, ArrowRight, BrainCircuit, ShieldCheck, FileJson, Layers, Save, HardDrive } from 'lucide-react';
 
 export const TechnicalDocs: React.FC = () => {
-  const [view, setView] = useState<'code' | 'thesis' | 'structure' | 'design_doc'>('design_doc');
+  const [view, setView] = useState<'code' | 'thesis' | 'structure' | 'design_doc' | 'diagrams'>('design_doc');
 
   const pythonCode = `
 # 后端逻辑实现 (FastAPI + vLLM + LangGraph)
@@ -90,6 +90,16 @@ app = workflow.compile()
 
   const structureData = [
     {
+      path: "services/db.ts",
+      type: "Data Layer",
+      description: "客户端持久化层。封装 IndexedDB 操作，实现用户鉴权信息、聊天记录以及错题本数据的本地存储与检索。",
+      snippet: `async addMistake(record: MistakeRecord): Promise<void> {
+  const db = await this.openDB();
+  const transaction = db.transaction(['mistakes'], 'readwrite');
+  // ... stores structured mistake data
+}`
+    },
+    {
       path: "App.tsx",
       type: "Controller",
       description: "应用的主控制器。负责管理全局状态（用户信息、教学状态机状态）、处理用户输入，并编排与本地 LLM 的交互循环。",
@@ -123,29 +133,14 @@ if (response.suggested_next_state !== currentState) {
     {
       path: "types.ts",
       type: "Definitions",
-      description: "定义核心数据模型和枚举（Enums）。包括教学状态机定义、通信协议接口 (StructuredAIResponse) 等。",
-      snippet: `export enum PedagogicalState {
-  GUIDING = 'GUIDING',
-  EXPLAINING = 'EXPLAINING',
-  QUIZZING = 'QUIZZING'
+      description: "定义核心数据模型和枚举（Enums）。包括教学状态机定义、通信协议接口 (StructuredAIResponse) 以及数据库实体定义。",
+      snippet: `export interface MistakeRecord {
+  id?: number;
+  userEmail: string;
+  question: string;
+  analysis: string;
+  // ...
 }`
-    },
-    {
-      path: "components/StateVisualizer.tsx",
-      type: "UI Component",
-      description: "将 AI 的“思考过程”可视化。展示当前所处的教学阶段，并渲染隐藏的 JSON 元数据（掌握度评分、内部独白）。",
-      snippet: `<div className="mt-auto bg-slate-50 ...">
-  <span className="uppercase">Knowledge Trace (Hidden)</span>
-  {/* Renders internal_monologue & mastery_score */}
-</div>`
-    },
-    {
-      path: "components/SettingsPanel.tsx",
-      type: "UI Component",
-      description: "上下文配置面板。允许用户调整学生年级、学科、当前任务模式，以及本地 API 的连接地址。",
-      snippet: `<select onChange={(e) => setStudent({...student, grade: e.target.value})}>
-  {Object.values(Grade).map(g => <option>{g}</option>)}
-</select>`
     }
   ];
 
@@ -154,7 +149,16 @@ if (response.suggested_next_state !== currentState) {
       <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
         <h1 className="text-3xl font-bold text-gray-900">EduMind AI 项目文档</h1>
         
-        <div className="flex bg-gray-100 p-1 rounded-lg">
+        <div className="flex bg-gray-100 p-1 rounded-lg flex-wrap">
+           <button 
+            onClick={() => setView('diagrams')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+              view === 'diagrams' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <Workflow className="w-4 h-4" />
+            系统图表
+          </button>
            <button 
             onClick={() => setView('design_doc')}
             className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
@@ -162,7 +166,7 @@ if (response.suggested_next_state !== currentState) {
             }`}
           >
             <BookOpen className="w-4 h-4" />
-            设计与实现 (PDF风格)
+            设计与实现
           </button>
           <button 
             onClick={() => setView('code')}
@@ -193,151 +197,408 @@ if (response.suggested_next_state !== currentState) {
           </button>
         </div>
       </div>
+
+      {/* --- DIAGRAMS VIEW --- */}
+      {view === 'diagrams' && (
+        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-16 pb-20">
+          
+          {/* Architecture Diagram */}
+          <section>
+            <div className="flex items-center gap-3 mb-6 border-b border-gray-200 pb-2">
+              <Layers className="w-6 h-6 text-blue-600" />
+              <h2 className="text-xl font-bold text-gray-800">1. 系统架构图 (System Architecture)</h2>
+            </div>
+            
+            <div className="bg-slate-50 p-8 rounded-xl border border-slate-200 shadow-inner">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+                
+                {/* Layer 1: Client & Persistence */}
+                <div className="border-2 border-dashed border-blue-200 bg-white p-6 rounded-lg relative flex flex-col justify-between">
+                  <div className="absolute -top-3 left-4 bg-blue-100 text-blue-800 px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wider">
+                    Client Layer
+                  </div>
+                  <div className="flex flex-col gap-4 mt-2 mb-4">
+                    <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-100 rounded-md shadow-sm">
+                      <Monitor className="w-5 h-5 text-blue-600" />
+                      <div>
+                        <div className="text-sm font-bold text-gray-800">React SPA</div>
+                        <div className="text-xs text-gray-500">Presentation</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Persistence Sub-layer */}
+                  <div className="border-t-2 border-gray-100 pt-4 mt-2">
+                    <div className="flex items-center gap-3 p-3 bg-indigo-50 border border-indigo-100 rounded-md shadow-sm">
+                      <HardDrive className="w-5 h-5 text-indigo-600" />
+                      <div>
+                        <div className="text-sm font-bold text-gray-800">IndexedDB</div>
+                        <div className="text-xs text-gray-500">Client Persistence</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Arrow to Middle */}
+                  <div className="hidden md:block absolute top-1/2 -right-6 transform -translate-y-1/2 z-10">
+                    <ArrowRight className="w-8 h-8 text-gray-300" />
+                  </div>
+                </div>
+
+                {/* Layer 2: Application Logic */}
+                <div className="border-2 border-dashed border-purple-200 bg-white p-6 rounded-lg relative">
+                  <div className="absolute -top-3 left-4 bg-purple-100 text-purple-800 px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wider">
+                    Orchestration Layer
+                  </div>
+                   <div className="flex flex-col gap-4 mt-2">
+                    <div className="flex items-center gap-3 p-3 bg-purple-50 border border-purple-100 rounded-md shadow-sm">
+                      <BrainCircuit className="w-5 h-5 text-purple-600" />
+                      <div>
+                        <div className="text-sm font-bold text-gray-800">Prompt Engine</div>
+                        <div className="text-xs text-gray-500">Dynamic Injection</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 bg-purple-50 border border-purple-100 rounded-md shadow-sm">
+                      <ShieldCheck className="w-5 h-5 text-green-600" />
+                      <div>
+                        <div className="text-sm font-bold text-gray-800">Guardrails</div>
+                        <div className="text-xs text-gray-500">Output Parser</div>
+                      </div>
+                    </div>
+                  </div>
+                   {/* Arrow to Right */}
+                  <div className="hidden md:block absolute top-1/2 -right-6 transform -translate-y-1/2 z-10">
+                    <ArrowRight className="w-8 h-8 text-gray-300" />
+                  </div>
+                </div>
+
+                {/* Layer 3: Model Service */}
+                <div className="border-2 border-dashed border-green-200 bg-white p-6 rounded-lg relative">
+                  <div className="absolute -top-3 left-4 bg-green-100 text-green-800 px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wider">
+                    Model Layer (Local)
+                  </div>
+                   <div className="flex flex-col gap-4 mt-2">
+                    <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-100 rounded-md shadow-sm">
+                      <Server className="w-5 h-5 text-green-600" />
+                      <div>
+                        <div className="text-sm font-bold text-gray-800">Inference Engine</div>
+                        <div className="text-xs text-gray-500">vLLM / Ollama (FastAPI)</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-md shadow-sm opacity-80">
+                      <Database className="w-5 h-5 text-gray-600" />
+                      <div>
+                        <div className="text-sm font-bold text-gray-800">32B Model</div>
+                        <div className="text-xs text-gray-500">Weights (GGUF/AWQ)</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+              <p className="text-center text-xs text-gray-400 mt-6 font-mono">Figure 5.1: High-level System Component Architecture (Updated with Persistence)</p>
+            </div>
+          </section>
+
+          {/* DFD */}
+          <section>
+            <div className="flex items-center gap-3 mb-6 border-b border-gray-200 pb-2">
+              <Workflow className="w-6 h-6 text-blue-600" />
+              <h2 className="text-xl font-bold text-gray-800">2. 数据流向图 (Data Flow Diagram - Level 1)</h2>
+            </div>
+
+            <div className="overflow-x-auto pb-4">
+              <div className="min-w-[900px] flex flex-col gap-8">
+                
+                {/* Main Process Flow */}
+                <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm flex items-center justify-between gap-4 relative z-10">
+                  
+                  {/* Entity: User */}
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center border-2 border-blue-200 shadow-sm">
+                      <User className="w-8 h-8 text-blue-600" />
+                    </div>
+                    <span className="text-sm font-bold text-gray-700">Student</span>
+                  </div>
+
+                  <ArrowRight className="w-6 h-6 text-gray-300" />
+
+                  {/* Process: Controller */}
+                  <div className="flex flex-col items-center gap-2 w-32">
+                    <div className="w-full py-3 bg-white border-2 border-gray-800 rounded-lg text-center shadow-md">
+                      <span className="text-xs font-bold text-gray-900 block">P1</span>
+                      <span className="text-xs font-medium text-gray-600">Controller</span>
+                    </div>
+                  </div>
+
+                  <div className="h-0.5 w-6 bg-gray-300"></div>
+
+                  {/* Process: Prompt Engineering */}
+                  <div className="flex flex-col items-center gap-2 w-36">
+                    <div className="w-full py-3 bg-purple-50 border-2 border-purple-600 rounded-lg text-center shadow-md">
+                      <span className="text-xs font-bold text-purple-900 block">P2</span>
+                      <span className="text-xs font-medium text-purple-700">Prompt Engine</span>
+                    </div>
+                  </div>
+
+                  <div className="h-0.5 w-6 bg-gray-300"></div>
+
+                  {/* Process: LLM */}
+                  <div className="flex flex-col items-center gap-2 w-32">
+                    <div className="w-full py-3 bg-green-50 border-2 border-green-600 rounded-lg text-center shadow-md">
+                      <span className="text-xs font-bold text-green-900 block">P3</span>
+                      <span className="text-xs font-medium text-green-700">Inference</span>
+                    </div>
+                  </div>
+
+                  <div className="h-0.5 w-6 bg-gray-300"></div>
+
+                  {/* Process: Output Parser */}
+                   <div className="flex flex-col items-center gap-2 w-36">
+                    <div className="w-full py-3 bg-orange-50 border-2 border-orange-600 rounded-lg text-center shadow-md">
+                      <span className="text-xs font-bold text-orange-900 block">P4</span>
+                      <span className="text-xs font-medium text-orange-700">JSON Parser</span>
+                    </div>
+                  </div>
+
+                   <ArrowRight className="w-6 h-6 text-gray-300" />
+
+                   {/* Entity: UI */}
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-16 h-16 bg-gray-100 rounded-md flex items-center justify-center border-2 border-gray-300 shadow-sm">
+                      <FileJson className="w-8 h-8 text-gray-600" />
+                    </div>
+                    <span className="text-sm font-bold text-gray-700">UI Render</span>
+                  </div>
+                </div>
+
+                {/* Data Store Layer */}
+                <div className="flex justify-around px-20">
+                   {/* D1: User Store */}
+                   <div className="flex flex-col items-center relative">
+                      <div className="h-8 w-0.5 bg-gray-300 mb-2 border-l border-dashed border-gray-400"></div>
+                      <div className="w-40 py-2 bg-indigo-50 border-x-2 border-indigo-600 shadow-sm text-center">
+                        <span className="text-xs font-bold text-indigo-900 block">D1: Users</span>
+                        <span className="text-[10px] text-indigo-700">IndexedDB</span>
+                      </div>
+                      <div className="absolute -top-10 left-1/2 w-32 h-10 border-l border-b border-gray-300 -translate-x-full rounded-bl-xl -z-10"></div>
+                   </div>
+
+                   {/* D2: Chat History */}
+                   <div className="flex flex-col items-center relative">
+                      <div className="h-8 w-0.5 bg-gray-300 mb-2 border-l border-dashed border-gray-400"></div>
+                      <div className="w-40 py-2 bg-indigo-50 border-x-2 border-indigo-600 shadow-sm text-center">
+                        <span className="text-xs font-bold text-indigo-900 block">D2: Chat Logs</span>
+                        <span className="text-[10px] text-indigo-700">IndexedDB</span>
+                      </div>
+                       {/* Connection lines would act conceptually here in a real SVG, implying P1/P4 writes here */}
+                   </div>
+
+                   {/* D3: Mistake Book */}
+                   <div className="flex flex-col items-center relative">
+                      <div className="h-8 w-0.5 bg-gray-300 mb-2 border-l border-dashed border-gray-400"></div>
+                      <div className="w-40 py-2 bg-indigo-50 border-x-2 border-indigo-600 shadow-sm text-center">
+                         <span className="text-xs font-bold text-indigo-900 block">D3: Mistakes</span>
+                         <span className="text-[10px] text-indigo-700">IndexedDB</span>
+                      </div>
+                   </div>
+                </div>
+
+              </div>
+              <p className="text-center text-xs text-gray-400 mt-6 font-mono">Figure 5.2: Data Flow Diagram with Client-Side Persistence</p>
+            </div>
+          </section>
+
+          {/* Sequence Description */}
+           <section>
+            <div className="flex items-center gap-3 mb-4">
+              <Code className="w-5 h-5 text-gray-500" />
+              <h3 className="text-lg font-bold text-gray-700">数据字典 (Data Dictionary - Updated)</h3>
+            </div>
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+               <table className="w-full text-sm text-left text-gray-500">
+                  <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+                      <tr>
+                          <th scope="col" className="px-6 py-3">Entity Name</th>
+                          <th scope="col" className="px-6 py-3">Storage</th>
+                          <th scope="col" className="px-6 py-3">Description</th>
+                      </tr>
+                  </thead>
+                  <tbody>
+                      <tr className="bg-white border-b">
+                          <th scope="row" className="px-6 py-4 font-medium text-gray-900 font-mono">StudentProfile</th>
+                          <td className="px-6 py-4"><span className="bg-indigo-100 text-indigo-800 text-xs px-2 py-0.5 rounded">IndexedDB: Users</span></td>
+                          <td className="px-6 py-4">Stores auth credentials and personalization settings (Grade, Mastery).</td>
+                      </tr>
+                      <tr className="bg-white border-b">
+                          <th scope="row" className="px-6 py-4 font-medium text-gray-900 font-mono">ChatHistory</th>
+                          <td className="px-6 py-4"><span className="bg-indigo-100 text-indigo-800 text-xs px-2 py-0.5 rounded">IndexedDB: Chats</span></td>
+                          <td className="px-6 py-4">Persists conversation context to maintain state across reloads.</td>
+                      </tr>
+                      <tr className="bg-white border-b">
+                          <th scope="row" className="px-6 py-4 font-medium text-gray-900 font-mono">MistakeRecord</th>
+                          <td className="px-6 py-4"><span className="bg-indigo-100 text-indigo-800 text-xs px-2 py-0.5 rounded">IndexedDB: Mistakes</span></td>
+                          <td className="px-6 py-4">Structured error analysis records containing question, analysis, and knowledge point ID.</td>
+                      </tr>
+                       <tr className="bg-white">
+                          <th scope="row" className="px-6 py-4 font-medium text-gray-900 font-mono">StructuredResponse</th>
+                          <td className="px-6 py-4">Transient</td>
+                          <td className="px-6 py-4">JSON Output containing visible text, hidden thoughts, and next state signal.</td>
+                      </tr>
+                  </tbody>
+              </table>
+            </div>
+           </section>
+
+        </div>
+      )}
       
       {/* --- DESIGN DOC VIEW (PDF STYLE) --- */}
       {view === 'design_doc' && (
-        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 max-w-4xl mx-auto pb-24">
-          <div className="text-center mb-12 border-b-2 border-gray-800 pb-6">
-            <h2 className="text-2xl font-serif font-bold text-gray-900 tracking-wide mb-2">第五章 面向K-12的自适应垂直大模型教育系统设计与实现</h2>
-            <p className="text-gray-500 text-sm font-serif">Chapter 5: Design and Implementation of Adaptive Vertical LLM System for K-12 Education</p>
-          </div>
+  <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 max-w-4xl mx-auto pb-24">
+    <div className="text-center mb-12 border-b-2 border-gray-800 pb-6">
+      <h2 className="text-2xl font-serif font-bold text-gray-900 tracking-wide mb-2">第五章 面向K-12的自适应垂直大模型教育系统设计与实现</h2>
+      <p className="text-gray-500 text-sm font-serif">Chapter 5: Design and Implementation of Adaptive Vertical LLM System for K-12 Education</p>
+    </div>
 
-          <div className="prose prose-slate max-w-none text-justify font-serif leading-relaxed text-gray-800">
-            <p className="indent-8 mb-6">
-              本章基于第三、第四章对大语言模型微调策略与思维链（Chain-of-Thought）算法的研究，构建并实现了一个基于本地化部署的自适应垂直教育大模型系统——EduMind AI。该系统将前沿的指令微调（SFT）技术转化为用户友好的交互式教学应用，能够根据学生的认知水平实时调整教学策略。系统支持多学科知识问答与错题分析，通过内置的教学状态机（Pedagogical State Machine）实现苏格拉底式引导，避免了传统大模型直接输出答案的弊端。本章内容围绕系统概述、需求分析、系统设计、实现过程及核心功能演示五个维度展开详细阐述。
-            </p>
+    <div className="prose prose-slate max-w-none text-justify font-serif leading-relaxed text-gray-800">
+      {/* 5.1 Overview */}
+      <h3 className="text-xl font-bold text-gray-900 mt-10 mb-4 border-l-4 border-gray-800 pl-3">5.1 系统概述</h3>
+      <p className="indent-8 mb-4">
+        当前，生成式人工智能（Generative AI）在教育领域的应用正处于爆发式增长阶段。然而，通用的商用大模型（如 ChatGPT、Claude）在直接应用于 K-12 教育场景时，往往存在“过度服务”的问题——即直接给出习题答案，而非引导学生思考。这不仅违背了教育的初衷，还可能助长学生的惰性思维。此外，教育数据涉及未成年人的隐私，直接上传至公有云端存在合规风险。
+      </p>
+      <p className="indent-8 mb-4">
+        针对上述痛点，本章设计并实现了一个名为 <strong>EduMind AI</strong> 的自适应垂直教育大模型系统。该系统基于“本地优先（Local-First）”的架构理念，采用前后端分离的设计模式。前端通过 React 构建交互式单页应用，后端对接本地微调后的 32B 参数量级大模型（基于 vLLM 推理框架）。
+      </p>
+      <p className="indent-8 mb-6">
+        EduMind AI 的核心创新在于其“教学状态机（Pedagogical State Machine）”的设计。系统不再是一个简单的问答机器人，而是一个具备教学策略的智能体。它能够识别当前的教学阶段（引导、解析、测验），并结合学生的年级与掌握程度，动态调整对话策略。同时，系统引入了客户端持久化层（IndexedDB），确保了在离线或弱网环境下，学生的学习记录与错题数据依然能够被完整保存与回溯。
+      </p>
 
-            <h3 className="text-xl font-bold text-gray-900 mt-10 mb-4 border-l-4 border-gray-800 pl-3">5.1 系统概述</h3>
-            <p className="indent-8 mb-4">
-              随着生成式人工智能技术的迅速普及，利用大语言模型辅助个性化教学已成为教育技术领域的重要研究方向。其中，如何控制模型的输出行为，使其遵循教育心理学原理而非单纯的数据拟合，是当前面临的主要挑战。EduMind AI 旨在通过引入动态系统提示词（Dynamic System Prompting）与结构化思维链技术，解决通用大模型在教育场景中“幻觉”与“过度服务（直接给答案）”的问题。
-            </p>
-            <p className="indent-8 mb-6">
-              EduMind AI 是一个前后端分离的 Web 系统，后端基于 FastAPI、vLLM 并结合 LangGraph 编排框架，前端基于 React 框架。系统的核心功能是根据用户的学段（小学/初中）与学科背景，动态生成引导性对话，能够更准确地模拟人类教师的教学过程。系统旨在利用本地化部署的 32B 参数模型，保障未成年人数据隐私，同时提供低延迟的交互体验。
-            </p>
+      {/* 5.2 Requirements */}
+      <h3 className="text-xl font-bold text-gray-900 mt-10 mb-4 border-l-4 border-gray-800 pl-3">5.2 系统需求分析</h3>
+      
+      <h4 className="text-lg font-bold text-gray-800 mt-6 mb-3">5.2.1 功能性需求</h4>
+      <p className="indent-8 mb-2">系统需满足以下核心功能需求，以支撑完整的教学闭环：</p>
+      <ul className="list-disc space-y-2 pl-5 mb-4 marker:text-gray-400">
+        <li><strong>多轮自适应对话：</strong> 系统需支持数学、语文、英语、科学等多个学科的辅导，并能根据学生画像（如小学三年级 vs 初中二年级）自动调整语言风格与解释深度。</li>
+        <li><strong>苏格拉底式引导机制：</strong> 当处于“引导阶段”时，系统必须严格拦截直接索要答案的请求，转而通过反问、提示等方式引导学生自主探索。</li>
+        <li><strong>全链路状态可视化：</strong> 为了增强系统的可解释性，前端需实时展示 AI 的“思考过程”，包括当前的教学状态、对学生掌握度的评分（0-100）以及内部独白（Internal Monologue）。</li>
+        <li><strong>错题自动归档（Mistake Book）：</strong> 系统需具备错题分析能力。当检测到学生对某个知识点存在理解偏差时，需自动提取原题与知识点解析，并持久化存储至本地数据库，形成“错题本”供后续复习。</li>
+        <li><strong>用户会话管理：</strong> 支持用户注册、登录，并能保存历史聊天记录，确保学习过程的连续性。</li>
+      </ul>
 
-            <h3 className="text-xl font-bold text-gray-900 mt-10 mb-4 border-l-4 border-gray-800 pl-3">5.2 系统需求分析</h3>
-            <p className="indent-8 mb-4">
-              本节针对 EduMind AI 系统的需求展开分析，主要从功能性需求和非功能性需求两个维度进行阐述。
-            </p>
-            
-            <h4 className="text-lg font-bold text-gray-800 mt-6 mb-3">5.2.1 功能性需求分析</h4>
-            <p className="indent-8 mb-4">
-              在功能性需求方面，系统设计围绕用户交互、教学状态管理及多学科适应性三大核心模块展开。
-            </p>
-            <ul className="list-none space-y-2 pl-4 mb-4">
-              <li>(1) <strong>用户交互模块：</strong> 负责学生画像配置（年级、掌握程度）、多轮对话交互以及AI思维过程的可视化展示。</li>
-              <li>(2) <strong>教学状态管理模块：</strong> 系统需内置有限状态机（FSM），涵盖“引导(Guiding)”、“解析(Explaining)”及“测验(Quizzing)”三种状态，并根据学生反馈自动流转。</li>
-              <li>(3) <strong>自适应教学模块：</strong> 针对不同学段（Grade.PRIMARY vs Grade.MIDDLE），系统应自动调整词汇难度与解释策略（如具象类比 vs 抽象定义）。</li>
-              <li>(4) <strong>防作弊护栏：</strong> 系统需具备意图识别功能，当检测到学生直接索要答案时，强制拦截并转换为引导性提问。</li>
-            </ul>
+      <h4 className="text-lg font-bold text-gray-800 mt-6 mb-3">5.2.2 非功能性需求</h4>
+      <ul className="list-disc space-y-2 pl-5 mb-6 marker:text-gray-400">
+        <li><strong>数据隐私与安全：</strong> 所有个人敏感数据（PII）及聊天记录必须存储在用户本地设备（IndexedDB）或私有部署的服务器中，严禁传输至第三方公有云。</li>
+        <li><strong>响应实时性：</strong> 交互界面需具备极低的延迟。本地模型推理通过流式传输或优化后的推理引擎（vLLM）实现，确保首字生成时间（TTFT）在可接受范围内。</li>
+        <li><strong>系统鲁棒性：</strong> 针对大模型输出的不确定性，系统需具备强大的容错解析能力，能够处理非标准的 JSON 格式或 Markdown 包裹内容，防止前端崩溃。</li>
+      </ul>
 
-            <h4 className="text-lg font-bold text-gray-800 mt-6 mb-3">5.2.2 非功能性需求分析</h4>
-            <p className="indent-8 mb-4">
-              在非功能性需求方面，本章系统主要满足数据隐私性、推理实时性及输出规范性，具体如下。
-            </p>
-            <ul className="list-none space-y-2 pl-4 mb-6">
-              <li>(1) <strong>数据隐私性：</strong> 鉴于教育数据的敏感性，系统需完全在本地环境运行，不依赖外部公有云 API，确保学生数据不出域。</li>
-              <li>(2) <strong>推理实时性：</strong> 利用 vLLM 推理引擎的 PagedAttention 技术，确保在 32B 参数规模下的首字生成延迟（TTFT）控制在合理范围内。</li>
-              <li>(3) <strong>输出规范性：</strong> 模型必须严格遵循 JSON Schema 输出协议，确保前端能准确解析“内部独白”与“用户回复”。</li>
-            </ul>
+      {/* 5.3 Design */}
+      <h3 className="text-xl font-bold text-gray-900 mt-10 mb-4 border-l-4 border-gray-800 pl-3">5.3 系统设计</h3>
 
-            <h3 className="text-xl font-bold text-gray-900 mt-10 mb-4 border-l-4 border-gray-800 pl-3">5.3 系统设计</h3>
-            <p className="indent-8 mb-4">
-              本节从系统架构、功能模块以及通信协议设计三个维度完成本章系统的系统设计。
-            </p>
+      <h4 className="text-lg font-bold text-gray-800 mt-6 mb-3">5.3.1 系统架构设计</h4>
+      <p className="indent-8 mb-4">
+        本系统采用分层架构设计，自上而下分为<strong>表现层（Presentation Layer）</strong>、<strong>持久化层（Persistence Layer）</strong>、<strong>业务逻辑层（Business Logic Layer）</strong>与<strong>模型服务层（Model Service Layer）</strong>。
+      </p>
+      <div className="bg-slate-50 p-6 rounded-lg border border-slate-200 text-sm font-mono mb-6">
+        <ul className="space-y-3">
+          <li className="flex gap-2">
+            <span className="font-bold text-blue-700 w-24">[表现层]</span>
+            <span>React 18 + Tailwind CSS。负责 UI 渲染、状态可视化组件（StateVisualizer）及用户交互。</span>
+          </li>
+          <li className="flex gap-2">
+            <span className="font-bold text-indigo-700 w-24">[持久化层]</span>
+            <span>IndexedDB (Client-Side)。利用浏览器的原生 NoSQL 数据库，存储 UserProfile、ChatHistory 及 MistakeRecords，实现数据的本地闭环。</span>
+          </li>
+          <li className="flex gap-2">
+            <span className="font-bold text-purple-700 w-24">[业务层]</span>
+            <span>TypeScript Services。包含提示词工程（PromptEngineering）、状态机逻辑及数据访问对象（DAO）。</span>
+          </li>
+          <li className="flex gap-2">
+            <span className="font-bold text-green-700 w-24">[模型层]</span>
+            <span>Local Inference Server。基于 vLLM 或 Ollama 部署的微调版 Qwen/Llama-32B 模型，提供 OpenAI 兼容的 REST API。</span>
+          </li>
+        </ul>
+      </div>
 
-            <h4 className="text-lg font-bold text-gray-800 mt-6 mb-3">5.3.1 系统架构设计</h4>
-            <p className="indent-8 mb-4">
-              本章所设计的 EduMind AI 系统采用分层架构设计，分为表现层、应用编排层和模型服务层，系统架构如图 5.1 所示（此处以文字描述）。这种分层设计有助于实现模块化、高内聚低耦合的系统结构。
-            </p>
-            <div className="bg-gray-100 p-4 rounded-lg my-4 text-sm font-mono border border-gray-200">
-              <p className="text-center font-bold mb-2">[图 5.1 系统架构图]</p>
-              <p>
-                [表现层 (React)] <br/>
-                &nbsp;&nbsp;└── 状态可视化组件 / 设置面板 / 聊天窗口 <br/>
-                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↕ (HTTP/JSON) <br/>
-                [应用编排层 (TypeScript Services)] <br/>
-                &nbsp;&nbsp;└── 动态提示词引擎 / 状态机逻辑 / 护栏清洗 <br/>
-                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↕ (REST API) <br/>
-                [模型服务层 (Python/vLLM)] <br/>
-                &nbsp;&nbsp;└── 32B 微调模型 / Inference Engine
-              </p>
-            </div>
-            <ul className="list-none space-y-2 pl-4 mb-4">
-              <li>(1) <strong>表现层：</strong> 负责用户与系统的交互界面，基于 React 框架，使用 Tailwind CSS 组件库。</li>
-              <li>(2) <strong>应用编排层：</strong> 系统的核心逻辑中枢，负责 Prompt 的动态拼装、历史上下文的修剪以及模型输出的解析与容错处理。</li>
-              <li>(3) <strong>模型服务层：</strong> 提供 OpenAI 兼容的 API 接口，负责承载高负载的矩阵运算与文本生成任务。</li>
-            </ul>
+      <h4 className="text-lg font-bold text-gray-800 mt-6 mb-3">5.3.2 数据库设计 (IndexedDB Schema)</h4>
+      <p className="indent-8 mb-4">
+        为了支持离线访问与数据隐私，系统在客户端构建了非关系型数据库。主要包含三个对象仓库（Object Stores）：
+      </p>
+      <ul className="list-decimal space-y-2 pl-5 mb-4 text-sm font-mono text-gray-600 bg-gray-50 p-4 rounded border border-gray-100">
+        <li>
+          <strong>users</strong>: 存储用户凭证与偏好。
+          <br/>KeyPath: <code>email</code> (String)
+          <br/>Properties: <code>name, grade, masteryLevel, password...</code>
+        </li>
+        <li>
+          <strong>chats</strong>: 存储完整的对话历史。
+          <br/>KeyPath: <code>userEmail</code> (String)
+          <br/>Properties: <code>messages[] (JSON Array), updatedAt (Timestamp)</code>
+        </li>
+        <li>
+          <strong>mistakes</strong>: 存储结构化的错题记录。
+          <br/>KeyPath: <code>id</code> (AutoIncrement)
+          <br/>Index: <code>userEmail</code> (用于快速检索某用户的错题)
+          <br/>Properties: <code>question, analysis, knowledgePoint, subject, timestamp</code>
+        </li>
+      </ul>
 
-            <h4 className="text-lg font-bold text-gray-800 mt-6 mb-3">5.3.2 系统功能模块设计</h4>
-            <p className="indent-8 mb-4">
-              核心功能划分为<strong>提示词工程模块</strong>、<strong>本地推理交互模块</strong>和<strong>状态可视化模块</strong>。
-            </p>
-            <p className="indent-8 mb-4">
-              <strong>提示词工程模块 (Prompt Engineering Module)：</strong> 该模块采用策略模式设计。根据输入状态 $S$ 和学生画像 $P$，构建系统指令 $I = f(S, P)$。例如，当 $S=GUIDING$ 时，注入“禁止直接回答”的负向约束；当 $P.grade=PRIMARY$ 时，注入“使用生活化类比”的风格约束。
-            </p>
-            <p className="indent-8 mb-4">
-              <strong>本地推理交互模块 (Inference Service Module)：</strong> 负责封装 HTTP 请求，对接本地 `localhost:8000` 端口。模块内部实现了“Markdown 清洗器”，用于处理模型在 JSON 模式下偶尔输出 Markdown 代码块包裹符的边界情况，增强了系统的鲁棒性。
-            </p>
+      <h4 className="text-lg font-bold text-gray-800 mt-6 mb-3">5.3.3 通信协议设计</h4>
+      <p className="indent-8 mb-4">
+        系统核心依赖于大模型的结构化输出。为了确保前后端逻辑的准确对接，定义了严格的 JSON 响应模式（Schema）。模型不仅返回给用户的文本，还需返回控制系统状态的元数据：
+      </p>
+      <pre className="bg-gray-800 text-gray-100 p-4 rounded text-xs overflow-x-auto mb-6">
+{`interface StructuredAIResponse {
+  content_for_user: string;       // 显性回复
+  internal_monologue: string;     // 隐性思维链 (CoT)
+  knowledge_point_id: string;     // 关联知识点ID
+  student_mastery_score: number;  // 掌握度评分 (0-100)
+  suggested_next_state: Enum;     // 状态机流转信号 (GUIDING/EXPLAINING/QUIZZING)
+  is_direct_answer_attempt: bool; // 护栏触发标志
+}`}
+      </pre>
 
-            <h4 className="text-lg font-bold text-gray-800 mt-6 mb-3">5.3.3 数据交互协议设计</h4>
-            <p className="indent-8 mb-4">
-              不同于传统的 CRUD 系统，本系统的核心数据流转基于结构化的自然语言生成。为此设计了如下 JSON 通信协议（表 5.1）：
-            </p>
-            <table className="w-full text-sm border-collapse border border-gray-300 mb-6">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="border border-gray-300 p-2 text-left">字段名</th>
-                  <th className="border border-gray-300 p-2 text-left">类型</th>
-                  <th className="border border-gray-300 p-2 text-left">描述</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td className="border border-gray-300 p-2 font-mono">content_for_user</td>
-                  <td className="border border-gray-300 p-2">String</td>
-                  <td className="border border-gray-300 p-2">展示给用户的最终回复文本</td>
-                </tr>
-                <tr>
-                  <td className="border border-gray-300 p-2 font-mono">internal_monologue</td>
-                  <td className="border border-gray-300 p-2">String</td>
-                  <td className="border border-gray-300 p-2">模型的隐式思维链（CoT）</td>
-                </tr>
-                <tr>
-                  <td className="border border-gray-300 p-2 font-mono">suggested_next_state</td>
-                  <td className="border border-gray-300 p-2">Enum</td>
-                  <td className="border border-gray-300 p-2">FSM 状态转移信号</td>
-                </tr>
-                <tr>
-                  <td className="border border-gray-300 p-2 font-mono">is_direct_answer_attempt</td>
-                  <td className="border border-gray-300 p-2">Boolean</td>
-                  <td className="border border-gray-300 p-2">是否触发防作弊护栏</td>
-                </tr>
-              </tbody>
-            </table>
+      {/* 5.4 Implementation */}
+      <h3 className="text-xl font-bold text-gray-900 mt-10 mb-4 border-l-4 border-gray-800 pl-3">5.4 系统实现</h3>
 
-            <h3 className="text-xl font-bold text-gray-900 mt-10 mb-4 border-l-4 border-gray-800 pl-3">5.4 系统实现</h3>
-            <p className="indent-8 mb-4">
-              本节将详细介绍 EduMind AI 系统的实现细节，重点围绕动态提示词注入与前端状态机可视化两大核心功能展开。
-            </p>
+      <h4 className="text-lg font-bold text-gray-800 mt-6 mb-3">5.4.1 动态提示词引擎 (Prompt Engine) 实现</h4>
+      <p className="indent-8 mb-4">
+        实现代码位于 <code>services/promptEngineering.ts</code>。该模块实现了核心的策略注入逻辑。函数 <code>constructSystemPrompt</code> 接收当前的应用状态（Subject, StudentProfile, PedagogicalState），动态拼接系统指令。
+      </p>
+      <p className="indent-8 mb-4">
+        例如，当状态机处于 <code>GUIDING</code> 状态时，引擎会自动注入负向约束：“DO NOT provide direct answers. Focus on the Process.”。当学生年级为 <code>PRIMARY</code>（小学）时，引擎会注入语言风格约束：“Use simple analogies suitable for a 10-year-old.”。这种动态性保证了模型在长对话中依然能紧贴教学目标，而不会退化为普通的聊天机器人。
+      </p>
 
-            <h4 className="text-lg font-bold text-gray-800 mt-6 mb-3">5.4.1 动态提示词注入实现</h4>
-            <p className="indent-8 mb-4">
-              在 `services/promptEngineering.ts` 中实现了动态提示词构建逻辑。代码根据当前状态 `currentState` 动态拼接 `behavioralDirectives`。例如，在 GUIDING 阶段，系统强制注入 "Focus on the Process, not the Result" 的指令，从而在底层逻辑上切断模型直接生成答案的倾向。
-            </p>
+      <h4 className="text-lg font-bold text-gray-800 mt-6 mb-3">5.4.2 客户端数据持久化实现</h4>
+      <p className="indent-8 mb-4">
+        实现代码位于 <code>services/db.ts</code>。采用了 Promise 封装的 IndexedDB API。
+      </p>
+      <ul className="list-disc space-y-2 pl-5 mb-4">
+        <li><strong>数据库连接：</strong> 通过 <code>indexedDB.open('EduMindDB', 1)</code> 建立连接，并在 <code>onupgradeneeded</code> 事件中初始化 Object Stores 和 Indexes。</li>
+        <li><strong>事务处理：</strong> 所有的读写操作（如 <code>addMistake</code>, <code>saveChatHistory</code>）均被封装在独立的 Transaction 中，确保了数据的一致性。如果写入过程中发生异常，事务会自动回滚。</li>
+        <li><strong>错题本逻辑：</strong> 在 <code>App.tsx</code> 的交互循环中，当系统处于“错题分析模式”且模型输出了有效的知识点 ID 时，系统会自动触发 <code>dbService.addMistake()</code>，将当前的问答对归档。UI 层通过 <code>useLiveQuery</code> 或 <code>useEffect</code> 监听数据变化，实时更新“错题本”视图。</li>
+      </ul>
 
-            <h4 className="text-lg font-bold text-gray-800 mt-6 mb-3">5.4.2 状态可视化实现</h4>
-            <p className="indent-8 mb-4">
-              前端 `StateVisualizer.tsx` 组件通过解析后端返回的 `metadata`，将抽象的教学状态转化为可视化的进度指示器。如图 5.2 (界面右侧面板) 所示，组件实时渲染 "Knowledge Trace" 区域，展示模型的置信度评分（Mastery Score）与内部独白。这一实现实现了“AI 思考过程的白盒化”，增强了用户对 AI 教学策略的信任感。
-            </p>
+      <h4 className="text-lg font-bold text-gray-800 mt-6 mb-3">5.4.3 本地推理服务集成</h4>
+      <p className="indent-8 mb-4">
+        实现代码位于 <code>services/localLlmService.ts</code>。该模块充当了前端与本地大模型之间的网关。
+      </p>
+      <p className="indent-8 mb-4">
+        为了提高系统的健壮性，实现中加入了一个“清洗层”。由于大模型（即使是微调后的）偶尔会在 JSON 模式下输出 Markdown 代码块标记（如 ```json ... ```），<code>sendMessageToLocalLLM</code> 函数在解析响应前，会使用正则表达式去除这些无关字符。此外，还实现了超时处理与错误兜底机制，当本地服务不可用时，能够向用户反馈友好的错误提示，而不是直接白屏。
+      </p>
 
-            <h3 className="text-xl font-bold text-gray-900 mt-10 mb-4 border-l-4 border-gray-800 pl-3">5.5 本章小结</h3>
-            <p className="indent-8 mb-4">
-              本章对 EduMind AI 系统的设计和实现过程进行了详细介绍。首先对系统进行了概述，阐述了系统的建设目标与技术路线。然后，详细介绍了系统的整体设计，包括分层架构设计、功能模块设计以及通信协议设计。紧接着，介绍了系统中关键模块的具体实现，包括动态提示词引擎与本地推理服务。该系统的实现验证了在 K-12 教育场景下，利用小参数量（32B）本地微调模型配合状态机工程，能够有效实现可控、安全的智能化教学。
-            </p>
-          </div>
-        </div>
-      )}
+      {/* 5.5 Summary */}
+      <h3 className="text-xl font-bold text-gray-900 mt-10 mb-4 border-l-4 border-gray-800 pl-3">5.5 本章小结</h3>
+      <p className="indent-8 mb-4">
+        本章详细阐述了 EduMind AI 系统的全栈设计与实现过程。从架构层面，验证了“React + IndexedDB + Local LLM”这一轻量级、隐私优先的技术栈在教育场景下的可行性。从功能层面，通过实现动态提示词引擎与教学状态机，成功解决了大模型“甚至直接给答案”的教育痛点。
+      </p>
+      <p className="indent-8 mb-6">
+        特别是新增的客户端持久化层，使得系统具备了生产级的可用性，支持用户数据的长期保存与错题的系统化回顾。该系统的实现不仅为垂直领域大模型的落地提供了工程参考，也为未来个性化智能教育的发展探索了新的路径。
+      </p>
+    </div>
+  </div>
+)}
 
       {/* --- STRUCTURE VIEW --- */}
       {view === 'structure' && (

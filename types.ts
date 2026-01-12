@@ -27,6 +27,13 @@ export interface StudentProfile {
   age: number;
   grade: Grade;
   masteryLevel: 'Novice' | 'Intermediate' | 'Advanced';
+  email: string; // Mandatory for DB key
+  password?: string; // Only used for auth check, usually hashed in real apps
+}
+
+export interface AuthCredentials {
+  email: string;
+  password: string;
 }
 
 export interface StructuredAIResponse {
@@ -50,4 +57,15 @@ export interface AppState {
   subject: Subject;
   mode: TaskMode;
   pedagogicalState: PedagogicalState;
+}
+
+// New Entity for Data Layer
+export interface MistakeRecord {
+  id?: number; // Auto-incremented by IndexedDB
+  userEmail: string;
+  subject: Subject;
+  question: string;
+  analysis: string;
+  knowledgePoint: string;
+  timestamp: number;
 }

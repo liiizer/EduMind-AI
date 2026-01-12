@@ -2,27 +2,30 @@ import React, { useState, useEffect, useRef } from 'react';
 import { SettingsPanel } from './components/SettingsPanel';
 import { StateVisualizer } from './components/StateVisualizer';
 import { TechnicalDocs } from './components/TechnicalDocs';
+import { MistakeBook } from './components/MistakeBook';
 import { constructSystemPrompt } from './services/promptEngineering';
-// CHANGED: Import local service instead of Gemini
 import { sendMessageToLocalLLM } from './services/localLlmService';
+import { dbService } from './services/db';
 import { 
   Subject, Grade, TaskMode, PedagogicalState, 
   StudentProfile, ChatMessage, StructuredAIResponse 
 } from './types';
-import { Send, GraduationCap, Code2, MessageSquare, Server } from 'lucide-react';
+import { Send, GraduationCap, Code2, MessageSquare, Server, RotateCcw, BookX } from 'lucide-react';
 
 export default function App() {
   // --- Global State ---
-  const [activeTab, setActiveTab] = useState<'chat' | 'docs'>('chat');
+  // Auth state removed, defaults to true implicitly
+  const [activeTab, setActiveTab] = useState<'chat' | 'docs' | 'mistakes'>('chat');
 
   // --- Session State ---
   const [subject, setSubject] = useState<Subject>(Subject.MATH);
   const [mode, setMode] = useState<TaskMode>(TaskMode.MISTAKE_ANALYSIS);
   const [student, setStudent] = useState<StudentProfile>({
-    name: 'Student',
-    age: 11,
-    grade: Grade.PRIMARY,
-    masteryLevel: 'Intermediate'
+    name: 'Guest Student',
+    age: 12,
+    grade: Grade.MIDDLE,
+    masteryLevel: 'Intermediate',
+    email: 'guest@edumind.ai' // Default persistent ID for local DB
   });
 
   // --- Local Backend Configuration ---
@@ -30,14 +33,7 @@ export default function App() {
   const [modelName, setModelName] = useState("edu-32b-finetuned");
 
   // --- Chat & Pedagogical State ---
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: 'welcome',
-      role: 'assistant',
-      content: "Hello! I'm EduMind (Local). I'm connected to your fine-tuned 32B model. Please upload a problem!",
-      timestamp: Date.now()
-    }
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [currentState, setCurrentState] = useState<PedagogicalState>(PedagogicalState.GUIDING);
@@ -45,9 +41,47 @@ export default function App() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Auto-scroll logic
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (activeTab === 'chat') {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, activeTab]);
+
+  // Load History on Mount (for Guest)
+  useEffect(() => {
+    const loadHistory = async () => {
+      if (student.email) {
+        const history = await dbService.getChatHistory(student.email);
+        if (history && history.length > 0) {
+          setMessages(history);
+        } else {
+          // Default Welcome Message
+          setMessages([{
+            id: 'welcome',
+            role: 'assistant',
+            content: `Welcome! I'm ready to help you with ${student.grade} ${subject}.`,
+            timestamp: Date.now()
+          }]);
+        }
+      }
+    };
+    loadHistory();
+  }, [student.email, student.grade, subject]);
+
+  const handleResetSession = async () => {
+    const resetMsg: ChatMessage = {
+      id: 'reset',
+      role: 'assistant',
+      content: `Session reset. Ready for ${student.grade} ${subject}.`,
+      timestamp: Date.now()
+    };
+    setMessages([resetMsg]);
+    setCurrentState(PedagogicalState.GUIDING);
+    setLastMetadata(undefined);
+    // Clear history in DB for this user
+    await dbService.saveChatHistory(student.email, [resetMsg]);
+  };
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -59,7 +93,8 @@ export default function App() {
       timestamp: Date.now()
     };
 
-    setMessages(prev => [...prev, userMsg]);
+    const updatedMessages = [...messages, userMsg];
+    setMessages(updatedMessages);
     setInput('');
     setIsLoading(true);
 
@@ -68,25 +103,35 @@ export default function App() {
       const systemPrompt = constructSystemPrompt(subject, student, mode, currentState);
 
       // 2. Call Local API (vLLM/Ollama)
-      // We pass the current API URL and Model Name from settings
       const response = await sendMessageToLocalLLM(
         apiUrl,
         modelName,
         systemPrompt,
-        messages,
+        messages, // Use previous state
         userMsg.content
       );
 
-      // 3. State Management Update (Logic Loop)
+      // 3. State Management Update
       setLastMetadata(response);
-      
-      // Auto-transition state based on model suggestion
       if (response.suggested_next_state && response.suggested_next_state !== currentState) {
-        console.log(`State Transition: ${currentState} -> ${response.suggested_next_state}`);
         setCurrentState(response.suggested_next_state);
       }
 
-      // 4. Guardrail Check (Front-end filter simulation)
+      // 4. Mistake Recording Logic (Data Layer Integration)
+      // If we are in mistake analysis mode and the model provides a new concept explanation, assume a mistake was analyzed.
+      // In a real system, the LLM would output an explicit "should_save_mistake" flag.
+      if (mode === TaskMode.MISTAKE_ANALYSIS && response.knowledge_point_id && response.internal_monologue) {
+         await dbService.addMistake({
+           userEmail: student.email,
+           subject: subject,
+           question: userMsg.content.substring(0, 100), // Approximate question
+           analysis: response.internal_monologue,
+           knowledgePoint: response.knowledge_point_id,
+           timestamp: Date.now()
+         });
+      }
+
+      // 5. Response Construction
       let displayContent = response.content_for_user;
       if (response.is_direct_answer_attempt && currentState === PedagogicalState.GUIDING) {
         displayContent = "I noticed you asked for the answer directly. Let's try to solve it step-by-step first. What is your first thought?";
@@ -100,21 +145,27 @@ export default function App() {
         timestamp: Date.now()
       };
 
-      setMessages(prev => [...prev, botMsg]);
+      const finalMessages = [...updatedMessages, botMsg];
+      setMessages(finalMessages);
+      
+      // Persist to DB
+      await dbService.saveChatHistory(student.email, finalMessages);
 
     } catch (error) {
       console.error(error);
-      setMessages(prev => [...prev, {
+      const errorMsg: ChatMessage = {
         id: Date.now().toString(),
         role: 'assistant',
         content: "System Error: Could not process logic.",
         timestamp: Date.now()
-      }]);
+      };
+      setMessages(prev => [...prev, errorMsg]);
     } finally {
       setIsLoading(false);
     }
   };
 
+  // --- Main App Flow ---
   return (
     <div className="flex h-screen bg-gray-50 text-gray-900 font-sans overflow-hidden">
       
@@ -128,6 +179,19 @@ export default function App() {
           <p className="text-xs text-gray-400 mt-1">Fine-tuned Educational LLM</p>
         </div>
 
+        {/* User Profile Snippet */}
+        <div className="px-4 py-4 border-b border-gray-100 bg-gray-50/30">
+          <div className="flex items-center gap-3">
+             <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">
+                {student.name.charAt(0)}
+             </div>
+             <div className="overflow-hidden">
+               <p className="text-sm font-semibold text-gray-700 truncate">{student.name}</p>
+               <p className="text-[10px] text-gray-500 truncate">{student.grade}</p>
+             </div>
+          </div>
+        </div>
+
         <nav className="flex-1 p-4 space-y-2">
           <button 
             onClick={() => setActiveTab('chat')}
@@ -138,6 +202,17 @@ export default function App() {
             <MessageSquare className="w-5 h-5" />
             Tutoring Session
           </button>
+          
+          <button 
+            onClick={() => setActiveTab('mistakes')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === 'mistakes' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            <BookX className="w-5 h-5" />
+            Mistake Book
+          </button>
+
           <button 
             onClick={() => setActiveTab('docs')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
@@ -149,28 +224,38 @@ export default function App() {
           </button>
         </nav>
 
-        {activeTab === 'chat' && (
-          <div className="p-4 border-t border-gray-100 bg-gray-50/50">
-             <div className="text-xs text-center text-gray-500 mb-2 flex items-center justify-center gap-1">
-               <Server className="w-3 h-3" />
-               Local Inference
+        <div className="p-4 border-t border-gray-100 bg-gray-50/50">
+           {activeTab === 'chat' && (
+             <div className="mb-4">
+               <div className="text-xs text-center text-gray-500 mb-2 flex items-center justify-center gap-1">
+                 <Server className="w-3 h-3" />
+                 Local Inference
+               </div>
+               <div className="flex justify-center flex-col items-center gap-1">
+                  <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                    {modelName}
+                  </span>
+                  <span className="text-[10px] text-gray-400 truncate max-w-full">
+                    {apiUrl}
+                  </span>
+               </div>
              </div>
-             <div className="flex justify-center flex-col items-center gap-1">
-                <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
-                  {modelName}
-                </span>
-                <span className="text-[10px] text-gray-400 truncate max-w-full">
-                  {apiUrl}
-                </span>
-             </div>
-          </div>
-        )}
+           )}
+           
+           <button 
+             onClick={handleResetSession}
+             className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-100 border border-transparent hover:border-gray-200 transition-colors"
+           >
+             <RotateCcw className="w-3 h-3" />
+             Reset Session
+           </button>
+        </div>
       </div>
 
       {/* --- Main Content Area --- */}
       <main className="flex-1 flex overflow-hidden relative">
         
-        {activeTab === 'chat' ? (
+        {activeTab === 'chat' && (
           <>
             {/* Chat Area */}
             <div className="flex-1 flex flex-col w-full h-full relative">
@@ -249,7 +334,15 @@ export default function App() {
                </div>
             </div>
           </>
-        ) : (
+        )}
+
+        {activeTab === 'mistakes' && (
+           <div className="w-full h-full overflow-hidden bg-gray-50 p-4 md:p-8">
+             <MistakeBook userEmail={student.email} />
+           </div>
+        )}
+
+        {activeTab === 'docs' && (
           <div className="w-full h-full overflow-hidden">
              <TechnicalDocs />
           </div>
